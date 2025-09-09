@@ -37,14 +37,12 @@ export default defineConfig({
   },
   server: {
     port: 4399,
-    // proxy: {
-    //   [VITE_APP_BASE_API]: {
-    //     target: "https://www.elinkcrm.com",
-    //     changeOrigin: true,
-    //     rewrite: (path) =>
-    //       path.replace(new RegExp(`^${VITE_APP_BASE_API}`), ""),
-    //   },
-    // },
+    proxy: {
+      '/api': {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+    },
     hmr: {
       overlay: false,
     },
