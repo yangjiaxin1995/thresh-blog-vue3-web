@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -52,12 +53,15 @@ const router = createRouter({
 })
 
 router.beforeEach((to, _from, next) => {
+  const userStore = useUserStore()
   const requiresAuth = to.matched.some(
     (r) => r.meta && (r.meta as Record<string, unknown>).requiresAuth,
   )
   const isAdminArea = to.path.startsWith('/admin')
-  const token = localStorage.getItem('token')
-  if ((requiresAuth || isAdminArea) && to.name !== 'admin-login' && !token) {
+  const token = userStore.token
+  const now = new Date().getTime()
+  if ((requiresAuth || isAdminArea) && to.name !== 'admin-login' && !token && now - Number(token) > 1000 * 60 * 60 * 24) {
+    userStore.clearUserInfo()
     next({ name: 'admin-login', query: { redirect: to.fullPath } })
   } else {
     next()

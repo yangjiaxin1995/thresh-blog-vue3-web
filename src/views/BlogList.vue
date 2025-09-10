@@ -3,7 +3,7 @@ import { useFetch, useDateFormat } from '@vueuse/core'
 import { ElMessage } from 'element-plus'
 defineOptions({ name: 'BlogList' })
 
-type Post = {
+interface Post {
   id: string
   author: string
   title: string
@@ -11,9 +11,10 @@ type Post = {
   createtime: number
 }
 
-type ApiResp = {
+interface ApiResp {
   errno: number
-  data: Post[]
+  data?: Post[]
+  message?: string
 }
 
 const keyword = ref('')
@@ -91,7 +92,7 @@ onMounted(() => {
         </template>
         <template #default>
           <el-empty
-            v-if="!data || data?.data.length === 0"
+            v-if="!data || data?.data?.length === 0"
             description="暂无文章"
           />
           <div v-else class="bg-white border rounded divide-y">

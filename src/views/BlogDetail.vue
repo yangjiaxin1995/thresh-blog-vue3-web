@@ -3,7 +3,7 @@ import { useFetch, useDateFormat } from '@vueuse/core'
 import { ElMessage } from 'element-plus'
 defineOptions({ name: 'BlogDetail' })
 
-type Post = {
+interface Post {
   id: string
   author: string
   title: string
@@ -11,9 +11,10 @@ type Post = {
   createtime: number
 }
 
-type ApiResp = {
+interface ApiResp {
   errno: number
   data?: Post
+  message?: string
 }
 
 const route = useRoute()

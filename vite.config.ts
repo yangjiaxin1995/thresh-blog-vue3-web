@@ -26,7 +26,7 @@ export default defineConfig({
     Components({
       dts: 'src/components.d.ts',
       resolvers: [
-        ElementPlusResolver({ importStyle: 'css' }),
+        ElementPlusResolver({ importStyle: 'sass' }),
       ],
     }),
   ],

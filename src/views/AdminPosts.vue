@@ -1,23 +1,202 @@
+<script setup lang="ts">
+import { useFetch, useDateFormat } from '@vueuse/core'
+import type { FormInstance, FormRules } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { useUserStore } from '@/stores/user'
+defineOptions({ name: 'AdminPosts' })
+
+interface Post {
+  id: string
+  author: string
+  title: string
+  content: string
+  createtime: number
+}
+
+interface ApiResp {
+  errno: number
+  data?: Post[]
+  message?: string
+}
+const router = useRouter()
+const userStore = useUserStore()
+const keyword = ref('')
+const dialogVisible = ref(false)
+const editing = ref(false)
+const saving = ref(false)
+const deleting = ref(false)
+const formRef = ref<FormInstance>()
+const form = reactive<Omit<Post, 'createtime'>>({
+  id: '',
+  title: '',
+  content: '',
+  author: userStore.userInfo?.username ?? '',
+})
+const url = computed(() => {
+  if (keyword.value) {
+    return `/api/blog/list?isadmin=1&keyword=${keyword.value}`
+  }
+  return `/api/blog/list?isadmin=1`
+})
+
+const rules: FormRules = {
+  title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
+  content: [{ required: true, message: '请输入内容', trigger: 'blur' }],
+}
+
+const {
+  execute: getList,
+  data,
+  isFetching,
+} = useFetch(url, {
+  immediate: false,
+  afterFetch(ctx) {
+    if (ctx.data.errno === -1) {
+      ElMessage.error(ctx.data.message)
+      router.push('/admin/login')
+    }
+    return ctx
+  },
+  updateDataOnError: true,
+  onFetchError(ctx) {
+    ElMessage.error(ctx.error.message || '加载失败')
+    return ctx
+  },
+})
+  .get()
+  .json<ApiResp>()
+
+const newPost = (params: {
+  title: string
+  content: string
+}): Promise<Response> => {
+  return fetch('/api/blog/new', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params),
+  })
+}
+
+const updatePost = (params: {
+  id: string
+  title: string
+  content: string
+}): Promise<Response> => {
+  return fetch(`/api/blog/update?id=${params.id}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params),
+  })
+}
+
+const deletePost = (id: string): Promise<Response> => {
+  return fetch(`/api/blog/del?id=${id}`, {
+    method: 'POST',
+  })
+}
+
+const onSearch = () => {
+  getList()
+}
+
+const handleEdit = (row?: Post) => {
+  if (row) {
+    form.id = row.id
+    form.title = row.title
+    form.content = row.content
+    editing.value = true
+  } else {
+    editing.value = false
+  }
+  dialogVisible.value = true
+}
+
+const formatDate = (timeStamp: string | number) => {
+  return useDateFormat(timeStamp, 'YYYY-MM-DD HH:mm:ss').value
+}
+
+const onDelete = async (id: string) => {
+  deleting.value = true
+  try {
+    const res = await deletePost(id)
+    const data = (await res.json()) as ApiResp
+    if (data.errno === 0) {
+      getList()
+    } else {
+      ElMessage.error(data.message)
+    }
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '删除失败')
+  } finally {
+    deleting.value = false
+  }
+}
+
+const onSave = () => {
+  if (!formRef.value) return
+  formRef.value.validate(async (valid) => {
+    if (!valid) return
+    saving.value = true
+    try {
+      const res = await (editing.value ? updatePost(form) : newPost(form))
+      const data = (await res.json()) as ApiResp
+      if (data.errno === 0) {
+        dialogVisible.value = false
+        getList()
+      } else {
+        ElMessage.error(data.message)
+      }
+    } catch (error) {
+      ElMessage.error(error instanceof Error ? error.message : '保存失败')
+    } finally {
+      saving.value = false
+      formRef.value?.resetFields()
+    }
+  })
+}
+
+onMounted(() => {
+  getList()
+})
+</script>
+
 <template>
   <div class="p-4">
-    <div class="flex gap-3 justify-between mb-3">
-      <el-button type="primary" @click="openEdit()">新建文章</el-button>
+    <div class="flex gap-3 mb-3">
+      <el-button type="primary" @click="handleEdit()">新建文章</el-button>
       <el-input
         v-model="keyword"
-        placeholder="搜索标题"
+        placeholder="按关键词搜索"
         clearable
-        class="w-[280px]"
+        style="width: 280px"
+        @keyup.enter="onSearch"
+        @clear="onSearch"
       />
     </div>
-    <el-table :data="filtered" border>
+    <el-table v-loading="isFetching" :data="data?.data" border>
       <el-table-column prop="title" label="标题" min-width="240" />
-      <el-table-column prop="createdAt" label="创建时间" width="140" />
+      <el-table-column
+        prop="createtime"
+        label="创建时间"
+        width="240"
+        :formatter="(row) => formatDate(row.createtime)"
+      />
       <el-table-column label="操作" width="180">
         <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-popconfirm title="确定删除该文章吗？" @confirm="onDelete(row.id)">
+          <el-button size="small" @click="handleEdit(row)">编辑</el-button>
+          <el-popconfirm
+            width="200"
+            title="确定删除该文章吗？"
+            @confirm="onDelete(row.id)"
+          >
             <template #reference>
-              <el-button size="small" type="danger">删除</el-button>
+              <el-button size="small" type="danger" :loading="deleting">
+                删除
+              </el-button>
             </template>
           </el-popconfirm>
         </template>
@@ -29,102 +208,28 @@
       :title="editing ? '编辑文章' : '新建文章'"
       width="640px"
     >
-      <el-form :model="form" label-width="80px">
-        <el-form-item label="标题">
+      <el-form
+        :model="form"
+        :rules="rules"
+        ref="formRef"
+        label-width="80px"
+        @submit.prevent="onSave"
+      >
+        <el-form-item label="标题" prop="title">
           <el-input v-model="form.title" />
         </el-form-item>
-        <el-form-item label="摘要">
-          <el-input v-model="form.excerpt" type="textarea" :rows="3" />
-        </el-form-item>
-        <el-form-item label="内容">
+        <el-form-item label="内容" prop="content">
           <el-input v-model="form.content" type="textarea" :rows="8" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="onSave">保存</el-button>
+        <el-button type="primary" :loading="saving" @click="onSave"
+          >保存</el-button
+        >
       </template>
     </el-dialog>
   </div>
 </template>
-
-<script setup lang="ts">
-defineOptions({ name: 'AdminPosts' })
-
-type Post = {
-  id: string
-  title: string
-  excerpt: string
-  content: string
-  createdAt: string
-}
-const rows = ref<Post[]>([
-  {
-    id: '1',
-    title: 'Vue 3 组件通信最佳实践',
-    excerpt: '父子、跨层级通信...',
-    content: '正文...',
-    createdAt: '2025-01-01',
-  },
-  {
-    id: '2',
-    title: 'Pinia 状态管理入门',
-    excerpt: '核心用法与心智模型...',
-    content: '正文...',
-    createdAt: '2025-01-05',
-  },
-])
-
-const keyword = ref('')
-const filtered = computed(() => {
-  const k = keyword.value.trim().toLowerCase()
-  if (!k) return rows.value
-  return rows.value.filter((p) => p.title.toLowerCase().includes(k))
-})
-
-const dialogVisible = ref(false)
-const editing = ref(false)
-const form = reactive<Post>({
-  id: '',
-  title: '',
-  excerpt: '',
-  content: '',
-  createdAt: '',
-})
-
-function openEdit(row?: Post) {
-  if (row) {
-    Object.assign(form, row)
-    editing.value = true
-  } else {
-    Object.assign(form, {
-      id: '',
-      title: '',
-      excerpt: '',
-      content: '',
-      createdAt: new Date().toISOString().slice(0, 10),
-    })
-    editing.value = false
-  }
-  dialogVisible.value = true
-}
-
-function onSave() {
-  if (editing.value) {
-    const idx = rows.value.findIndex((x) => x.id === form.id)
-    if (idx !== -1) rows.value[idx] = { ...form }
-  } else {
-    const newId = String(
-      Math.max(0, ...rows.value.map((x) => Number(x.id))) + 1,
-    )
-    rows.value.unshift({ ...form, id: newId })
-  }
-  dialogVisible.value = false
-}
-
-function onDelete(id: string) {
-  rows.value = rows.value.filter((x) => x.id !== id)
-}
-</script>
 
 <style scoped></style>

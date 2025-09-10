@@ -1,19 +1,17 @@
 <template>
   <el-container class="h-screen">
     <el-aside
-      :width="isAsideCollapsed ? '64px' : '200px'"
+      style="width: 200px"
       class="border-r border-[var(--el-border-color)]"
     >
       <div
         class="h-14 flex items-center justify-center font-semibold text-[var(--el-text-color-primary)]"
       >
-        <span v-if="!isAsideCollapsed">后台管理</span>
-        <span v-else>管</span>
+        <span>后台管理</span>
       </div>
       <el-menu
         :default-active="activeMenu"
         router
-        :collapse="isAsideCollapsed"
         unique-opened
         class="h-[calc(100vh-56px)] border-r-0"
       >
@@ -32,11 +30,6 @@
       <el-header
         class="flex items-center gap-2 border-b border-[var(--el-border-color)]"
       >
-        <el-button text @click="toggleAside">
-          <el-icon>
-            <component :is="isAsideCollapsed ? Expand : Fold" />
-          </el-icon>
-        </el-button>
         <el-breadcrumb class="ml-2" separator="/">
           <el-breadcrumb-item :to="{ path: '/admin/posts' }">
             后台
@@ -53,7 +46,7 @@
         </el-breadcrumb>
         <div class="flex-1" />
         <RouterLink to="/" class="text-[var(--el-color-primary)]">
-          返回前台
+          返回博客列表
         </RouterLink>
       </el-header>
 
@@ -61,30 +54,32 @@
         <RouterView />
       </el-main>
 
-      <el-footer class="text-center text-[var(--el-text-color-secondary)]">
-        © 2025
+      <el-footer class="flex items-center justify-center">
+        <div class="text-[var(--el-text-color-secondary)]">
+          © 2025 Thresh Blog
+        </div>
       </el-footer>
     </el-container>
   </el-container>
 </template>
 
 <script setup lang="ts">
-import { Document, Setting, Fold, Expand } from '@element-plus/icons-vue'
+import { Document, Setting } from '@element-plus/icons-vue'
 import type { RouteRecordName } from 'vue-router'
 
 defineOptions({ name: 'AdminLayout' })
 
-const isAsideCollapsed = ref(false)
 const route = useRoute()
 
 const activeMenu = computed(() =>
   route.path.startsWith('/admin') ? route.path : '/admin/posts',
 )
-function toggleAside() {
-  isAsideCollapsed.value = !isAsideCollapsed.value
+
+interface Breadcrumb {
+  title: string
+  to?: { name: RouteRecordName }
 }
 
-type Breadcrumb = { title: string; to?: { name: RouteRecordName } }
 const breadcrumbs = computed<Breadcrumb[]>(() => {
   return route.matched
     .map((r) => {
