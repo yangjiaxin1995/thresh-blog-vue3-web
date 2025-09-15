@@ -96,6 +96,9 @@ const updatePost = (params: {
 const deletePost = (id: string): Promise<Response> => {
   return fetch(`/api/blog/del?id=${id}`, {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
   })
 }
 
@@ -125,6 +128,7 @@ const onDelete = async (id: string) => {
     const res = await deletePost(id)
     const data = (await res.json()) as ApiResp
     if (data.errno === 0) {
+      ElMessage.success('删除成功')
       getList()
     } else {
       ElMessage.error(data.message)
@@ -146,6 +150,7 @@ const onSave = () => {
       const data = (await res.json()) as ApiResp
       if (data.errno === 0) {
         dialogVisible.value = false
+        ElMessage.success('保存成功')
         getList()
       } else {
         ElMessage.error(data.message)
@@ -224,9 +229,9 @@ onMounted(() => {
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="onSave"
-          >保存</el-button
-        >
+        <el-button type="primary" :loading="saving" @click="onSave">
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>
